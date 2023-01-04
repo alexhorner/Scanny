@@ -44,7 +44,7 @@ local function searchyRoutine()
     print("Starting search for "..target.."...")
 
     while true do
-        if subroutine ~= nil then
+        if subroutine then
             subroutine()
             subroutine = nil
         end

@@ -6,8 +6,8 @@ local commands = {}
 function lib.processCommand(command)
     local targetCommand = commands[command.command]
 
-    if targetCommand ~= nil then
-        targetCommand(command)
+    if targetCommand then
+        return targetCommand(command)
     end
 end
 

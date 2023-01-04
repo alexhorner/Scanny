@@ -198,10 +198,6 @@ function lib.remoteListen(modem, channel, psk)
 
                 modem.transmit(replyChannel, channel, response)
             end
-        elseif incomingChannel == channel then
-            print("REJECT")
-            print()
-            print(textutils.serialise(message))
         end
     end
 end

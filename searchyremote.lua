@@ -15,13 +15,9 @@ local function handleResponses()
     while true do
         local event, side, incomingChannel, replyChannel, message, distance = os.pullEvent("modem_message")
 
-        if incomingChannel == port and type(message) == "table" and message.command and message.id and message.signature and signing.checkSignature(message) then
+        if incomingChannel == port and type(message) == "table" and message.command and message.id and message.signature and signing.checkSignature(psk, message) then
             print(textutils.serialise(message))
             os.queueEvent("searchy_response")
-        elseif incomingChannel == port then
-            print("REJECT")
-            print()
-            print(textutils.serialise(message))
         end
     end
 end
@@ -36,14 +32,14 @@ local function handleUserInput()
     
         if input == "pos" then
             command = {
-                id = math.random(0, 1000000),
+                id = tostring(math.random(0, 1000000)),
                 command = "getPosition"
             }
 
             expectResponse = true
         elseif input == "pause" then
             command = {
-                id = math.random(0, 1000000),
+                id = tostring(math.random(0, 1000000)),
                 command = "pause"
             }
         end
