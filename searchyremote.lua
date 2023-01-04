@@ -28,15 +28,12 @@ local function handleUserInput()
         local input = read()
 
         local command = nil
-        local expectResponse = false
     
         if input == "pos" then
             command = {
                 id = tostring(math.random(0, 1000000)),
                 command = "getPosition"
             }
-
-            expectResponse = true
         elseif input == "pause" then
             command = {
                 id = tostring(math.random(0, 1000000)),
@@ -49,12 +46,7 @@ local function handleUserInput()
     
             modem.transmit(targetPort, port, command)
 
-            if expectResponse then
-                os.pullEvent("searchy_response")
-            end
-
-            command = nil
-            expectResponse = false
+            os.pullEvent("searchy_response")
         end
     end
 end

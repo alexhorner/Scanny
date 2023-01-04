@@ -73,8 +73,13 @@ local function searchyRoutine()
     end
 end
 
+local function setSubroutine(subroutineFunc)
+    print("Subroutine set")
+    subroutine = subroutineFunc
+end
+
 local function listenRoutine()
-    searchy.remoteListen(modem, port, psk)
+    searchy.remoteListen(modem, port, psk, setSubroutine)
 end
 
 parallel.waitForAll(listenRoutine, searchyRoutine)

@@ -184,14 +184,27 @@ function lib.selectClosestTarget(results, target)
     return foundRelX, foundRelY, foundRelZ, foundCost
 end
 
-function lib.remoteListen(modem, channel, psk)
+function lib.remoteListen(modem, channel, psk, subroutineSetter)
     while true do
         local event, side, incomingChannel, replyChannel, message, distance = os.pullEvent("modem_message")
 
         if incomingChannel == channel and type(message) == "table" and message.command and message.id and message.signature and signing.checkSignature(psk, message) then
             local response = commands.processCommand(message)
 
-            if response then
+            if type(response) == "function" then
+                local function subroutineWrapper()
+                    local subroutineResponse = response()
+                    os.queueEvent("searchy_subroutine_complete", subroutineResponse)
+                end
+
+                subroutineSetter(subroutineWrapper)
+
+                local _, subroutineResponse = os.pullEvent("searchy_subroutine_complete")
+
+                response = subroutineResponse
+            end
+
+            if type(response) == "table" then
                 response.id = message.id
                 response.command = "response-"..math.random(0, 1000000).."-"..message.command
                 response.signature = signing.calculateSignature(psk, response)

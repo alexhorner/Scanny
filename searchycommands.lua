@@ -21,8 +21,12 @@ function commands.getPosition(command)
 end
 
 function commands.pause(command)
-    os.pullEvent("key")
-    return nil
+    local function subroutine()
+        os.pullEvent("key")
+        return { success = true }
+    end
+
+    return subroutine
 end
 
 return lib
