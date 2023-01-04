@@ -1,11 +1,11 @@
 local lib = {}
 
-lib.facing = 0 --0 is +Z South
+lib.heading = 0 --0 is +Z South
 lib.currentAbsX = 0
 lib.currentAbsY = 0
 lib.currentAbsZ = 0
 
-lib.facingDirections = {
+lib.headingDirections = {
     north = 2, -- Negative Z
     east = 3, -- Positive X
     south = 0, -- Positive Z
@@ -20,8 +20,52 @@ function lib.setCurrentAbsPosition(x, y, z)
     lib.currentAbsZ = z
 end
 
-function lib.setCurrentFacing(currentFacing)
-    lib.facing = currentFacing
+function lib.setCurrentheading(currentheading)
+    lib.heading = currentheading
+end
+
+function lib.autoSetup()
+    --Ensure the face of the turtle is clear for movement for compass heading detection
+    while turtle.detect() do
+        turtle.dig()
+        sleep(0.25)
+    end
+
+    --Get two locks to autocalculate our compass heading
+    local currentPositionX, currentPositionY, currentPositionZ = gps.locate()
+    if currentPositionX == nil then error("Couldn't get a GPS lock") end
+    turtle.forward()
+
+    local newPositionX, newPositionY, newPositionZ = gps.locate()
+    turtle.back()
+    if newPositionX == nil then error("Couldn't get a GPS lock") end
+
+    --Set our coordinates
+    lib.setCurrentAbsPosition(currentPositionX, currentPositionY, currentPositionZ)
+
+    --Calculate heading
+    if currentPositionX ~= newPositionX then
+        --Heading is on the X axis
+        if currentPositionX < newPositionX then
+            --We went up the X axis, so +X which is East
+            lib.setCurrentheading(lib.headingDirections.east)
+        else
+            --We went down the X axis, so -X which is West
+            lib.setCurrentheading(lib.headingDirections.west)
+        end
+    elseif currentPositionZ ~= newPositionZ then
+        --Heading is on the Z axis
+        if currentPositionZ < newPositionZ then
+            --We went up the Z axis, so +Z which is South
+            lib.setCurrentheading(lib.headingDirections.south)
+        else
+            --We went down the Z axis, so -Z which is North
+            lib.setCurrentheading(lib.headingDirections.north)
+        end
+    else
+        --Minecraft is very broken
+        error("Heading calculations are invalid. Couldn't autodetect heading")
+    end
 end
 
 function lib.getRelMovementCost(x, y, z)
@@ -43,26 +87,26 @@ end
 function lib.turnLeft()
     turtle.turnLeft()
 
-    if lib.facing == lib.facingDirections.south then
-        lib.facing = lib.facingDirections.east
+    if lib.heading == lib.headingDirections.south then
+        lib.heading = lib.headingDirections.east
     else
-        lib.facing = lib.facing - 1
+        lib.heading = lib.heading - 1
     end
 end
 
 function lib.turnRight()
     turtle.turnRight()
 
-    if lib.facing == lib.facingDirections.east then
-        lib.facing = lib.facingDirections.south
+    if lib.heading == lib.headingDirections.east then
+        lib.heading = lib.headingDirections.south
     else
-        lib.facing = lib.facing + 1
+        lib.heading = lib.heading + 1
     end
 end
 
 function lib.turnSouth()
-    while lib.facing ~= lib.facingDirections.south do
-        if lib.facing == lib.facingDirections.east then
+    while lib.heading ~= lib.headingDirections.south do
+        if lib.heading == lib.headingDirections.east then
             lib.turnRight()
         else
             lib.turnLeft()
@@ -71,8 +115,8 @@ function lib.turnSouth()
 end
 
 function lib.turnWest()
-    while lib.facing ~= lib.facingDirections.west do
-        if lib.facing == lib.facingDirections.south then
+    while lib.heading ~= lib.headingDirections.west do
+        if lib.heading == lib.headingDirections.south then
             lib.turnRight()
         else
             lib.turnLeft()
@@ -81,8 +125,8 @@ function lib.turnWest()
 end
 
 function lib.turnNorth()
-    while lib.facing ~= lib.facingDirections.north do
-        if lib.facing == lib.facingDirections.west then
+    while lib.heading ~= lib.headingDirections.north do
+        if lib.heading == lib.headingDirections.west then
             lib.turnRight()
         else
             lib.turnLeft()
@@ -91,8 +135,8 @@ function lib.turnNorth()
 end
 
 function lib.turnEast()
-    while lib.facing ~= lib.facingDirections.east do
-        if lib.facing == lib.facingDirections.north then
+    while lib.heading ~= lib.headingDirections.east do
+        if lib.heading == lib.headingDirections.north then
             lib.turnRight()
         else
             lib.turnLeft()
@@ -103,32 +147,32 @@ end
 function lib.forward()
     turtle.forward()
 
-    if lib.facing == lib.facingDirections.north then
+    if lib.heading == lib.headingDirections.north then
         lib.currentAbsZ = lib.currentAbsZ - 1
-    elseif lib.facing == lib.facingDirections.south then
+    elseif lib.heading == lib.headingDirections.south then
         lib.currentAbsZ = lib.currentAbsZ + 1
-    elseif lib.facing == lib.facingDirections.east then
+    elseif lib.heading == lib.headingDirections.east then
         lib.currentAbsX = lib.currentAbsX + 1
-    elseif lib.facing == lib.facingDirections.west then
+    elseif lib.heading == lib.headingDirections.west then
         lib.currentAbsX = lib.currentAbsX - 1
     else
-        error("Lost track of lib.facing direction. Direction "..lib.facing.." is invalid")
+        error("Lost track of lib.heading direction. Direction "..lib.heading.." is invalid")
     end
 end
 
 function lib.back()
     turtle.back()
 
-    if lib.facing == lib.facingDirections.north then
+    if lib.heading == lib.headingDirections.north then
         lib.currentAbsZ = lib.currentAbsZ + 1
-    elseif lib.facing == lib.facingDirections.south then
+    elseif lib.heading == lib.headingDirections.south then
         lib.currentAbsZ = lib.currentAbsZ - 1
-    elseif lib.facing == lib.facingDirections.east then
+    elseif lib.heading == lib.headingDirections.east then
         lib.currentAbsX = lib.currentAbsX - 1
-    elseif lib.facing == lib.facingDirections.west then
+    elseif lib.heading == lib.headingDirections.west then
         lib.currentAbsX = lib.currentAbsX + 1
     else
-        error("Lost track of lib.facing direction. Direction "..lib.facing.." is invalid")
+        error("Lost track of lib.heading direction. Direction "..lib.heading.." is invalid")
     end
 end
 

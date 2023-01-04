@@ -1,8 +1,10 @@
 local positioning = require("positioning")
+local commands = require("searchycommands")
+local signing = require("searchysigning")
 
 local lib = {}
 
-function lib.GoAfterRelPositiveZ(relZ)
+function lib.goAfterRelPositiveZ(relZ)
     positioning.turnSouth()
 
     for goZ = 0, relZ - 1 do
@@ -20,7 +22,7 @@ function lib.GoAfterRelPositiveZ(relZ)
     end
 end
 
-function lib.GoAfterRelNegativeZ(relZ)
+function lib.goAfterRelNegativeZ(relZ)
     positioning.turnNorth()
 
     local positiveRelZ = relZ - relZ - relZ
@@ -40,7 +42,7 @@ function lib.GoAfterRelNegativeZ(relZ)
     end
 end
 
-function lib.GoAfterRelPositiveX(relX)
+function lib.goAfterRelPositiveX(relX)
     positioning.turnEast()
 
     for goX = 0, relX - 1 do
@@ -58,7 +60,7 @@ function lib.GoAfterRelPositiveX(relX)
     end
 end
 
-function lib.GoAfterRelNegativeX(relX)
+function lib.goAfterRelNegativeX(relX)
     positioning.turnWest()
 
     local positiveRelX = relX - relX - relX
@@ -78,7 +80,7 @@ function lib.GoAfterRelNegativeX(relX)
     end
 end
 
-function lib.GoAfterRelPositiveY(relY)
+function lib.goAfterRelPositiveY(relY)
     for goY = 0, relY - 1 do
         while turtle.detectUp() do
             turtle.digUp()
@@ -94,7 +96,7 @@ function lib.GoAfterRelPositiveY(relY)
     end
 end
 
-function lib.GoAfterRelNegativeY(relY)
+function lib.goAfterRelNegativeY(relY)
     local positiveRelY = relY - relY - relY
 
     for goY = 0, positiveRelY - 1 do
@@ -107,27 +109,27 @@ function lib.GoAfterRelNegativeY(relY)
     end
 end
 
-function lib.GoAfterRelBlock(relX, relY, relZ)
+function lib.goAfterRelBlock(relX, relY, relZ)
     --Switch to Pickaxe
     turtle.select(16)
     turtle.equipRight()
 
     if relY >= 1 then
-        lib.GoAfterRelPositiveY(relY)
+        lib.goAfterRelPositiveY(relY)
     elseif relY < 0 then
-        lib.GoAfterRelNegativeY(relY)
+        lib.goAfterRelNegativeY(relY)
     end
 
     if relZ >= 1 then
-        lib.GoAfterRelPositiveZ(relZ)
+        lib.goAfterRelPositiveZ(relZ)
     elseif relZ < 0 then
-        lib.GoAfterRelNegativeZ(relZ)
+        lib.goAfterRelNegativeZ(relZ)
     end
 
     if relX >= 1 then
-        lib.GoAfterRelPositiveX(relX)
+        lib.goAfterRelPositiveX(relX)
     elseif relX < 0 then
-        lib.GoAfterRelNegativeX(relX)
+        lib.goAfterRelNegativeX(relX)
     end
 
     --Switch to Scanner
@@ -135,7 +137,7 @@ function lib.GoAfterRelBlock(relX, relY, relZ)
     turtle.equipRight()
 end
 
-function lib.MoveOn(distance)
+function lib.moveOn(distance)
     --Switch to Pickaxe
     turtle.select(16)
     turtle.equipRight()
@@ -159,7 +161,7 @@ function lib.selectClosestTarget(results, target)
 
     for index, block in pairs(results) do
         if block.name == target then
-            if foundRelX ~= nil then
+            if foundRelX then
                 --We already found a target, but we will now check if this target is closer
                 local newTargetCost = positioning.getRelMovementCost(block.x, block.y, block.z)
 
@@ -180,6 +182,28 @@ function lib.selectClosestTarget(results, target)
     end
 
     return foundRelX, foundRelY, foundRelZ, foundCost
+end
+
+function lib.remoteListen(modem, channel, psk)
+    while true do
+        local event, side, incomingChannel, replyChannel, message, distance = os.pullEvent("modem_message")
+
+        if incomingChannel == channel and type(message) == "table" and message.command and message.id and message.signature and signing.checkSignature(psk, message) then
+            local response = commands.processCommand(message)
+
+            if response then
+                response.id = message.id
+                response.command = "response-"..math.random(0, 1000000).."-"..message.command
+                response.signature = signing.calculateSignature(psk, response)
+
+                modem.transmit(replyChannel, channel, response)
+            end
+        elseif incomingChannel == channel then
+            print("REJECT")
+            print()
+            print(textutils.serialise(message))
+        end
+    end
 end
 
 return lib

@@ -1,6 +1,8 @@
 --Load config
 local target = "minecraft:gold_ore"
 local hello = "intendedclient"
+local port = 38956
+local psk = "vnFwJSkhkR9o967o4ejyWgumoE92fDqWMMQVWKYXMteoprBBNFanFpfoWD3PEgnQcrEa2N6aAYRioyzw8fjFLcqaLamRuYHaN94mQK79kgKj9GPZ23cVGFdp5EpE3gHt" --TODO this should be changed!
 
 --Load libraries
 local positioning = require("positioning")
@@ -8,49 +10,12 @@ local searchy = require("searchytools")
 
 --Initialise modem
 local modem = peripheral.find("modem")
-
 if modem == nil then error("Couldn't find a modem") end
+modem.open(port)
 
-modem.open(38956)
-
---Lock initial GPS position
-
-local gpsAbsX, gpsAbsY, gpsAbsZ = gps.locate()
-
-if gpsAbsX == nil then error("Could not get a GPS lock") end
-
-positioning.setCurrentAbsPosition(gpsAbsX, gpsAbsY, gpsAbsZ)
-
---Obtain facing direction from user
-print("First I need to get my bearings! I am at X: "..positioning.currentAbsX.." Y: "..positioning.currentAbsY.." and Z: "..positioning.currentAbsZ.." but am I facing [N]orth, [S]outh, [E]ast or [W]est?")
-
-while true do
-    local key = { os.pullEvent("key") }
-    
-    if key[2] == keys.n then
-        print("Okay! I'm facing North!")
-        print()
-        positioning.setCurrentFacing(2)
-        break;
-    elseif key[2] == keys.s then
-        print("Okay! I'm facing South!")
-        print()
-        positioning.setCurrentFacing(0)
-        break;
-    elseif key[2] == keys.e then
-        print("Okay! I'm facing East!")
-        print()
-        positioning.setCurrentFacing(3)
-        break;
-    elseif key[2] == keys.w then
-        print("Okay! I'm facing West!")
-        print()
-        positioning.setCurrentFacing(1)
-        break;
-    end
-end
-
-print("Facing: "..positioning.facing)
+--Set up local positioning using GPS and movement based autocalculations
+print("Automatically obtaining GPS lock and compass heading...")
+positioning.autoSetup()
 
 --Set up Block Scanner and Pickaxe
 print("Place Pickaxe or Scanner in slot 16, and then press enter...")
@@ -73,28 +38,43 @@ end
 local scannerAccuracy = 8
 
 --Run Searchy!
-print("Starting search for "..target.."...")
+local subroutine = nil
 
-while true do
-    print("Scanning...")
+local function searchyRoutine()
+    print("Starting search for "..target.."...")
 
-    local results = scanner.scan()
+    while true do
+        if subroutine ~= nil then
+            subroutine()
+            subroutine = nil
+        end
 
-    print("Scan complete!")
+        print("Scanning...")
 
-    local foundRelX, foundRelY, foundRelZ, foundCost = searchy.selectClosestTarget(results, target)
+        local results = scanner.scan()
 
-    if foundRelX ~= nil then
-        --Transmit intentions
-        print("Found "..target.." at X: "..foundRelX.." Y: "..foundRelY.." Z: "..foundRelZ.." Cost: "..foundCost)
+        print("Scan complete!")
 
-        modem.transmit(38957, 38956, { hello = hello, x = foundRelX, y = foundRelY, z = foundRelZ, cost = foundCost, absPos = { positioning.currentAbsX, positioning.currentAbsY, positioning.currentAbsZ } })
-        
-        --Go to block's position
-        searchy.GoAfterRelBlock(foundRelX, foundRelY, foundRelZ)
-    else
-        --No block found, move on a bit and retry
-        print("Nothing found, moving on!")
-        searchy.MoveOn(scannerAccuracy)
+        local foundRelX, foundRelY, foundRelZ, foundCost = searchy.selectClosestTarget(results, target)
+
+        if foundRelX ~= nil then
+            --Transmit intentions
+            print("Found "..target.." at X: "..foundRelX.." Y: "..foundRelY.." Z: "..foundRelZ.." Cost: "..foundCost)
+
+            --modem.transmit(38957, 38956, { hello = hello, x = foundRelX, y = foundRelY, z = foundRelZ, cost = foundCost, absPos = { positioning.currentAbsX, positioning.currentAbsY, positioning.currentAbsZ } })
+            
+            --Go to block's position
+            searchy.goAfterRelBlock(foundRelX, foundRelY, foundRelZ)
+        else
+            --No block found, move on a bit and retry
+            print("Nothing found, moving on!")
+            searchy.moveOn(scannerAccuracy)
+        end
     end
 end
+
+local function listenRoutine()
+    searchy.remoteListen(modem, port, psk)
+end
+
+parallel.waitForAll(listenRoutine, searchyRoutine)
