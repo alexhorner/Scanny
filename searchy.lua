@@ -1,11 +1,19 @@
+--Load config
 local target = "minecraft:gold_ore"
-local hello = "PokeyWuff"
+local hello = "intendedclient"
 
+--Load libraries
 local positioning = require("positioning")
+local searchy = require("searchytools")
 
+--Initialise modem
 local modem = peripheral.find("modem")
 
 if modem == nil then error("Couldn't find a modem") end
+
+modem.open(38956)
+
+--Lock initial GPS position
 
 local gpsAbsX, gpsAbsY, gpsAbsZ = gps.locate()
 
@@ -13,8 +21,7 @@ if gpsAbsX == nil then error("Could not get a GPS lock") end
 
 positioning.setCurrentAbsPosition(gpsAbsX, gpsAbsY, gpsAbsZ)
 
-modem.open(38956)
-
+--Obtain facing direction from user
 print("First I need to get my bearings! I am at X: "..positioning.currentAbsX.." Y: "..positioning.currentAbsY.." and Z: "..positioning.currentAbsZ.." but am I facing [N]orth, [S]outh, [E]ast or [W]est?")
 
 while true do
@@ -45,6 +52,7 @@ end
 
 print("Facing: "..positioning.facing)
 
+--Set up Block Scanner and Pickaxe
 print("Place Pickaxe or Scanner in slot 16, and then press enter...")
 
 while true do
@@ -64,164 +72,7 @@ end
 
 local scannerAccuracy = 8
 
-local foundRelX = nil
-local foundRelY = nil
-local foundRelZ = nil
-local foundCost = nil
-
-local function GoAfterPositiveZ()
-    positioning.turnSouth()
-
-    for goZ = 0, foundRelZ-1 do
-        while turtle.detect() do
-            turtle.dig()
-            sleep(0.25)
-        end
-
-        positioning.forward()
-        
-        while turtle.detectUp() do
-            turtle.digUp()
-            sleep(0.25)
-        end
-    end
-end
-
-local function GoAfterNegativeZ()
-    positioning.turnNorth()
-
-    local positivefoundRelZ = foundRelZ - foundRelZ - foundRelZ
-
-    for goZ = 0, positivefoundRelZ-1 do
-        while turtle.detect() do
-            turtle.dig()
-            sleep(0.25)
-        end
-
-        positioning.forward()
-        
-        while turtle.detectUp() do
-            turtle.digUp()
-            sleep(0.25)
-        end
-    end
-end
-
-local function GoAfterPositiveX()
-    positioning.turnEast()
-
-    for goX = 0, foundRelX-1 do
-        while turtle.detect() do
-            turtle.dig()
-            sleep(0.25)
-        end
-
-        positioning.forward()
-        
-        while turtle.detectUp() do
-            turtle.digUp()
-            sleep(0.25)
-        end
-    end
-end
-
-local function GoAfterNegativeX()
-    positioning.turnWest()
-
-    local positivefoundRelX = foundRelX - foundRelX - foundRelX
-
-    for goX = 0, positivefoundRelX-1 do
-        while turtle.detect() do
-            turtle.dig()
-            sleep(0.25)
-        end
-
-        positioning.forward()
-        
-        while turtle.detectUp() do
-            turtle.digUp()
-            sleep(0.25)
-        end
-    end
-
-    --positioning.turnSouth()
-end
-
-local function GoAfterPositiveY()
-    for goY = 0, foundRelY-1 do
-        while turtle.detectUp() do
-            turtle.digUp()
-            sleep(0.25)
-        end
-
-        positioning.up()
-        
-        while turtle.detectUp() do
-            turtle.digUp()
-            sleep(0.25)
-        end
-    end
-end
-
-local function GoAfterNegativeY()
-    local positivefoundRelY = foundRelY - foundRelY - foundRelY
-
-    for goY = 0, positivefoundRelY-1 do
-        while turtle.detectDown() do
-            turtle.digDown()
-            sleep(0.25)
-        end
-
-        positioning.down()
-    end
-end
-
-local function GoAfterBlock()
-    --Switch to Pickaxe
-    turtle.select(16)
-    turtle.equipRight()
-
-    --We must always return to south
-
-    if foundRelY >= 1 then
-        GoAfterPositiveY()
-    elseif foundRelY < 0 then
-        GoAfterNegativeY()
-    end
-
-    if foundRelZ >= 1 then
-        GoAfterPositiveZ()
-    elseif foundRelZ < 0 then
-        GoAfterNegativeZ()
-    end
-
-    if foundRelX >= 1 then
-        GoAfterPositiveX()
-    elseif foundRelX < 0 then
-        GoAfterNegativeX()
-    end
-
-    --Switch to Scanner
-    turtle.select(16)
-    turtle.equipRight()
-end
-
-local function MoveOn()
-    --Switch to Pickaxe
-    turtle.select(16)
-    turtle.equipRight()
-    
-    for i = 1, scannerAccuracy do
-        turtle.dig()
-        positioning.forward()
-        turtle.digUp()
-    end
-
-    --Switch to Scanner
-    turtle.select(16)
-    turtle.equipRight()
-end
-
+--Run Searchy!
 print("Starting search for "..target.."...")
 
 while true do
@@ -231,50 +82,19 @@ while true do
 
     print("Scan complete!")
 
-    for index, block in pairs(results) do
-        if block.name == target then
-            if foundRelX ~= nil then
-                --We already found a target, but we will now check if this target is closer
-                local newTargetCost = positioning.getRelMovementCost(block.x, block.y, block.z)
-
-                if newTargetCost < foundCost then
-                    --This target is closer, so we will select it
-                    foundRelX = block.x
-                    foundRelY = block.y
-                    foundRelZ = block.z
-                    foundCost = newTargetCost
-                end
-            else
-                foundRelX = block.x
-                foundRelY = block.y
-                foundRelZ = block.z
-                foundCost = positioning.getRelMovementCost(foundRelX, foundRelY, foundRelZ)
-            end
-        end
-    end
+    local foundRelX, foundRelY, foundRelZ, foundCost = searchy.selectClosestTarget(results, target)
 
     if foundRelX ~= nil then
-        --Check GPS positioning is valid still
-        local gpsAbsX, gpsAbsY, gpsAbsZ = gps.locate()
-
-        if gpsAbsX ~= positioning.currentAbsX or gpsAbsY ~= positioning.currentAbsY or gpsAbsZ ~= positioning.currentAbsZ then error("GPS MISMATCH! Actual (X: "..gpsAbsX.." Y: "..gpsAbsY.." Z: "..gpsAbsZ..") Expected (X: "..positioning.currentAbsX.." Y: "..positioning.currentAbsY.." Z: "..positioning.currentAbsZ..")") end
-
         --Transmit intentions
         print("Found "..target.." at X: "..foundRelX.." Y: "..foundRelY.." Z: "..foundRelZ.." Cost: "..foundCost)
 
-        modem.transmit(38957, 38956, { hello = hello, x = foundRelX, y = foundRelY, z = foundRelZ, cost = foundCost, absPos = { gps.locate() } })
+        modem.transmit(38957, 38956, { hello = hello, x = foundRelX, y = foundRelY, z = foundRelZ, cost = foundCost, absPos = { positioning.currentAbsX, positioning.currentAbsY, positioning.currentAbsZ } })
         
         --Go to block's position
-        GoAfterBlock()
-        
-        --Reset
-        foundRelX = nil
-        foundRelY = nil
-        foundRelZ = nil
-        foundCost = nil
+        searchy.GoAfterRelBlock(foundRelX, foundRelY, foundRelZ)
     else
         --No block found, move on a bit and retry
         print("Nothing found, moving on!")
-        MoveOn()
+        searchy.MoveOn(scannerAccuracy)
     end
 end
