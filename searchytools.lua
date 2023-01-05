@@ -184,7 +184,13 @@ function lib.selectClosestTarget(results, target)
     return foundRelX, foundRelY, foundRelZ, foundCost
 end
 
+local function subroutineIntermediarySender(message)
+    os.queueEvent("searchy_subroutine_intermediary", message)
+end
+
 function lib.remoteListen(modem, channel, psk, subroutineSetter)
+    commands.setIntermediarySender(subroutineIntermediarySender)
+
     while true do
         local event, side, incomingChannel, replyChannel, message, distance = os.pullEvent("modem_message")
 
@@ -201,14 +207,29 @@ function lib.remoteListen(modem, channel, psk, subroutineSetter)
                     end
     
                     subroutineSetter(subroutineWrapper)
+
+                    local subroutineResponse
     
-                    local _, subroutineResponse = os.pullEvent("searchy_subroutine_complete")
+                    while true do
+                        local eventType, eventData = os.pullEvent()
+
+                        if eventType == "searchy_subroutine_complete" then
+                            subroutineResponse = eventData
+                            break;
+                        elseif eventType == "searchy_subroutine_intermediary" then
+                            eventData.command = "intermediary"
+
+                            protective.protect(psk, eventData)
+            
+                            modem.transmit(replyChannel, channel, eventData)
+                        end
+                    end
     
                     response = subroutineResponse --Overwrite the reponse allowing the if check below to run if applicable
                 end
     
                 if type(response) == "table" then
-                    response.command = "response-"..math.random(0, 1000000).."-"..message.command
+                    response.command = "response"
 
                     protective.protect(psk, response)
     

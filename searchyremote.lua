@@ -16,18 +16,14 @@ local function handleResponses()
         local event, side, incomingChannel, replyChannel, message, distance = os.pullEvent("modem_message")
 
         if incomingChannel == port and type(message) == "table" then
-            print(textutils.serialise(message))
-
             local unprotected = protective.unprotect(psk, message)
 
             if unprotected then
-                --print(textutils.serialise(message))
-                print()
-                print("Message passed unprotection")
-                os.queueEvent("searchy_response")
-            else
-                print()
-                print("Message failed unprotection")
+                print(textutils.serialise(message))
+                
+                if message.command == "response" then
+                    os.queueEvent("searchy_response")
+                end
             end
         end
     end

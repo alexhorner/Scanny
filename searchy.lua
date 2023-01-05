@@ -60,8 +60,6 @@ local function searchyRoutine()
         if foundRelX ~= nil then
             --Transmit intentions
             print("Found "..target.." at X: "..foundRelX.." Y: "..foundRelY.." Z: "..foundRelZ.." Cost: "..foundCost)
-
-            --modem.transmit(38957, 38956, { hello = hello, x = foundRelX, y = foundRelY, z = foundRelZ, cost = foundCost, absPos = { positioning.currentAbsX, positioning.currentAbsY, positioning.currentAbsZ } })
             
             --Go to block's position
             searchy.goAfterRelBlock(foundRelX, foundRelY, foundRelZ)
@@ -74,7 +72,6 @@ local function searchyRoutine()
 end
 
 local function setSubroutine(subroutineFunc)
-    print("Subroutine set")
     subroutine = subroutineFunc
 end
 

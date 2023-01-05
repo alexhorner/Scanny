@@ -32,11 +32,15 @@ end
 
 function commands.pause()
     local function subroutine()
+        local inter = commands.getPosition()
+        inter.message = "Searchy is now paused. This command will complete when the user presses a key on the turtle..."
+        sendIntermediary(inter)
+
         os.pullEvent("key")
-        return commands.getPosition()
+        return { message = "User has unpaused searchy" }
     end
 
-    sendIntermediary({ acknowledged = true })
+    sendIntermediary({ message = "Please wait, searchy is pausing..." })
     return subroutine
 end
 
