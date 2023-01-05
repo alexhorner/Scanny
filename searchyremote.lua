@@ -4,7 +4,7 @@ local targetPort = 38956
 local psk = "vnFwJSkhkR9o967o4ejyWgumoE92fDqWMMQVWKYXMteoprBBNFanFpfoWD3PEgnQcrEa2N6aAYRioyzw8fjFLcqaLamRuYHaN94mQK79kgKj9GPZ23cVGFdp5EpE3gHt" --TODO this should be changed!
 
 --Load libraries
-local signing = require("searchysigning")
+local protective = require("protectivemessaging")
 
 --Initialise modem
 local modem = peripheral.find("modem")
@@ -15,9 +15,20 @@ local function handleResponses()
     while true do
         local event, side, incomingChannel, replyChannel, message, distance = os.pullEvent("modem_message")
 
-        if incomingChannel == port and type(message) == "table" and message.command and message.id and message.signature and signing.checkSignature(psk, message) then
+        if incomingChannel == port and type(message) == "table" then
             print(textutils.serialise(message))
-            os.queueEvent("searchy_response")
+
+            local unprotected = protective.unprotect(psk, message)
+
+            if unprotected then
+                --print(textutils.serialise(message))
+                print()
+                print("Message passed unprotection")
+                os.queueEvent("searchy_response")
+            else
+                print()
+                print("Message failed unprotection")
+            end
         end
     end
 end
@@ -42,7 +53,7 @@ local function handleUserInput()
         end
 
         if command then
-            command.signature = signing.calculateSignature(psk, command)
+            protective.protect(psk, command)
     
             modem.transmit(targetPort, port, command)
 
@@ -51,4 +62,5 @@ local function handleUserInput()
     end
 end
 
+--Run remote
 parallel.waitForAll(handleResponses, handleUserInput)

@@ -1,6 +1,6 @@
 local positioning = require("positioning")
 local commands = require("searchycommands")
-local signing = require("searchysigning")
+local protective = require("protectivemessaging")
 
 local lib = {}
 
@@ -188,28 +188,32 @@ function lib.remoteListen(modem, channel, psk, subroutineSetter)
     while true do
         local event, side, incomingChannel, replyChannel, message, distance = os.pullEvent("modem_message")
 
-        if incomingChannel == channel and type(message) == "table" and message.command and message.id and message.signature and signing.checkSignature(psk, message) then
-            local response = commands.processCommand(message)
+        if incomingChannel == channel and type(message) == "table" then
+            local unprotectedMessage = protective.unprotect(psk, message)
 
-            if type(response) == "function" then
-                local function subroutineWrapper()
-                    local subroutineResponse = response()
-                    os.queueEvent("searchy_subroutine_complete", subroutineResponse)
+            if unprotectedMessage then
+                local response = commands.processCommand(message)
+
+                if type(response) == "function" then
+                    local function subroutineWrapper()
+                        local subroutineResponse = response()
+                        os.queueEvent("searchy_subroutine_complete", subroutineResponse)
+                    end
+    
+                    subroutineSetter(subroutineWrapper)
+    
+                    local _, subroutineResponse = os.pullEvent("searchy_subroutine_complete")
+    
+                    response = subroutineResponse --Overwrite the reponse allowing the if check below to run if applicable
                 end
+    
+                if type(response) == "table" then
+                    response.command = "response-"..math.random(0, 1000000).."-"..message.command
 
-                subroutineSetter(subroutineWrapper)
-
-                local _, subroutineResponse = os.pullEvent("searchy_subroutine_complete")
-
-                response = subroutineResponse
-            end
-
-            if type(response) == "table" then
-                response.id = message.id
-                response.command = "response-"..math.random(0, 1000000).."-"..message.command
-                response.signature = signing.calculateSignature(psk, response)
-
-                modem.transmit(replyChannel, channel, response)
+                    protective.protect(psk, response)
+    
+                    modem.transmit(replyChannel, channel, response)
+                end 
             end
         end
     end
