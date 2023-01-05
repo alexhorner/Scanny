@@ -1,4 +1,5 @@
 local positioning = require("positioning")
+local searchy = require("searchytools")
 
 local lib = {}
 local commands = {}
@@ -41,6 +42,24 @@ function commands.pause()
     end
 
     sendIntermediary({ message = "Please wait, searchy is pausing..." })
+    return subroutine
+end
+
+function commands.summon(command)
+    local function subroutine()
+        local inter = commands.getPosition()
+        inter.message = "Searchy is now travelling to your location..."
+        sendIntermediary(inter)
+
+        searchy.goAfterAbsBlock(command.posX, command.posY, command.posZ)
+
+        sendIntermediary({ message = "Searchy has arrived at the summon position and paused. This command will complete when the user presses a key on the turtle..." })
+
+        os.pullEvent("key")
+        return { message = "User has unpaused searchy" }
+    end
+
+    sendIntermediary({ message = "Please wait, searchy is finishing up..." })
     return subroutine
 end
 

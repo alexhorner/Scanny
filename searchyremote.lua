@@ -20,7 +20,7 @@ local function handleResponses()
 
             if unprotected then
                 print(textutils.serialise(message))
-                
+
                 if message.command == "response" then
                     os.queueEvent("searchy_response")
                 end
@@ -38,14 +38,25 @@ local function handleUserInput()
     
         if input == "pos" then
             command = {
-                id = tostring(math.random(0, 1000000)),
                 command = "getPosition"
             }
         elseif input == "pause" then
             command = {
-                id = tostring(math.random(0, 1000000)),
                 command = "pause"
             }
+        elseif input == "summon" then
+            local posX, posY, posZ = gps.locate()
+
+            if not posX then
+                print("Unable to locate current position")
+            else
+                command = {
+                    command = "summon",
+                    posX = posX,
+                    posY = posY,
+                    posZ = posZ
+                }
+            end
         end
 
         if command then

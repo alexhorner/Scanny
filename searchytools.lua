@@ -1,6 +1,4 @@
 local positioning = require("positioning")
-local commands = require("searchycommands")
-local protective = require("protectivemessaging")
 
 local lib = {}
 
@@ -137,6 +135,30 @@ function lib.goAfterRelBlock(relX, relY, relZ)
     turtle.equipRight()
 end
 
+function lib.goAfterAbsBlock(absX, absY, absZ)
+    local targetX, targetY, targetZ
+
+    if positioning.currentAbsX < absX then
+        targetX = absX - positioning.currentAbsX
+    else
+        targetX = -(positioning.currentAbsX - absX)
+    end
+
+    if positioning.currentAbsY < absY then
+        targetY = absY - positioning.currentAbsY
+    else
+        targetY = -(positioning.currentAbsY - absY)
+    end
+
+    if positioning.currentAbsZ < absZ then
+        targetZ = absZ - positioning.currentAbsZ
+    else
+        targetZ = -(positioning.currentAbsZ - absZ)
+    end
+
+    lib.goAfterRelBlock(targetX, targetY, targetZ)
+end
+
 function lib.moveOn(distance)
     --Switch to Pickaxe
     turtle.select(16)
@@ -182,62 +204,6 @@ function lib.selectClosestTarget(results, target)
     end
 
     return foundRelX, foundRelY, foundRelZ, foundCost
-end
-
-local function subroutineIntermediarySender(message)
-    os.queueEvent("searchy_subroutine_intermediary", message)
-end
-
-function lib.remoteListen(modem, channel, psk, subroutineSetter)
-    commands.setIntermediarySender(subroutineIntermediarySender)
-
-    while true do
-        local event, side, incomingChannel, replyChannel, message, distance = os.pullEvent("modem_message")
-
-        if incomingChannel == channel and type(message) == "table" then
-            local unprotectedMessage = protective.unprotect(psk, message)
-
-            if unprotectedMessage then
-                local response = commands.processCommand(message)
-
-                if type(response) == "function" then
-                    local function subroutineWrapper()
-                        local subroutineResponse = response()
-                        os.queueEvent("searchy_subroutine_complete", subroutineResponse)
-                    end
-    
-                    subroutineSetter(subroutineWrapper)
-
-                    local subroutineResponse
-    
-                    while true do
-                        local eventType, eventData = os.pullEvent()
-
-                        if eventType == "searchy_subroutine_complete" then
-                            subroutineResponse = eventData
-                            break;
-                        elseif eventType == "searchy_subroutine_intermediary" then
-                            eventData.command = "intermediary"
-
-                            protective.protect(psk, eventData)
-            
-                            modem.transmit(replyChannel, channel, eventData)
-                        end
-                    end
-    
-                    response = subroutineResponse --Overwrite the reponse allowing the if check below to run if applicable
-                end
-    
-                if type(response) == "table" then
-                    response.command = "response"
-
-                    protective.protect(psk, response)
-    
-                    modem.transmit(replyChannel, channel, response)
-                end 
-            end
-        end
-    end
 end
 
 return lib
